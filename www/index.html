@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Araina</title>
+<style>
+:root{--bg:#14161a;--panel:#1b1e24;--line:#2c313a;--ink:#e8e6e1;--dim:#8b909a;--acc:#e0a3b8;--ok:#7fc6a4;--bad:#e27d7d}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:grid;grid-template-columns:220px 1fr 380px;grid-template-rows:44px 1fr;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,sans-serif}
+header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);font-weight:600}
+header .s{margin-left:auto;font-weight:400;color:var(--dim)}
+aside,main,section{min-height:0;overflow:auto}aside{border-right:1px solid var(--line);padding:8px}
+section{border-left:1px solid var(--line);display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}button:hover{border-color:var(--acc)}button:focus-visible,input:focus-visible,textarea:focus-visible,.f:focus-visible{outline:2px solid var(--acc)}
+.f{padding:3px 8px;border-radius:4px;cursor:pointer;white-space:pre}.f:hover,.f.on{background:var(--panel)}.d{color:var(--dim)}
+main{display:flex;flex-direction:column}#bar{display:flex;gap:8px;padding:8px;border-bottom:1px solid var(--line);align-items:center}
+#ed{flex:1;width:100%;border:0;border-radius:0;resize:none;font:13px/1.5 ui-monospace,monospace;background:var(--bg);tab-size:2}
+#log{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.m{padding:8px 10px;border-radius:8px;white-space:pre-wrap;background:var(--panel)}.m.u{background:#2a2430}.t{font-size:12px;color:var(--ok)}.t.x{color:var(--bad)}
+#cf{padding:10px;border-top:1px solid var(--line);display:flex;gap:8px}#cf textarea{flex:1;height:60px}
+dialog{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;width:420px}dialog label{display:block;margin:10px 0 4px;color:var(--dim)}dialog input,dialog select{width:100%}
+</style></head><body>
+<header>Araina <span class="d">AI software engineer</span><span class="s" id="st">checking…</span><button id="gear">Settings</button></header>
+<aside><div id="tree"></div></aside>
+<main><div id="bar"><span id="cur" class="d">No file open</span><button id="save" disabled>Save</button></div><textarea id="ed" spellcheck="false" disabled></textarea></main>
+<section><div id="log"><div class="m">Namaste! Set your Gemini key in Settings, then tell me what to build. Hindi, Hinglish or English all work.</div></div>
+<form id="cf"><textarea id="msg" placeholder="Araina, ek portfolio website banao…"></textarea><button>Send</button></form></section>
+<dialog id="dlg"><h3>Gemini settings</h3>
+<p class="d">Your key is stored on this server only and is never sent to the browser. Quotas, billing and model availability depend on your Google account.</p>
+<label>API key <span id="mk" class="d"></span></label><input id="key" type="password" placeholder="Paste new key" autocomplete="off">
+<label>Model</label><select id="model"></select><p id="res" class="d"></p>
+<div style="display:flex;gap:8px;margin-top:8px"><button id="sv">Save</button><button id="ts">Test connection</button><button id="rm">Remove key</button><button id="cl" style="margin-left:auto">Close</button></div></dialog>
+<script>
+const $=s=>document.querySelector(s),H={'content-type':'application/json','x-araina':'1'};
+const api=(p,m='GET',b)=>fetch(p,{method:m,headers:H,body:b&&JSON.stringify(b)}).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.error);return j});
+let cur=null,cfg={};
+async function status(){cfg=await api('/api/config');$('#st').textContent=cfg.hasKey?`Key ${cfg.masked} · ${cfg.model||'no model selected'}`:'No API key';$('#mk').textContent=cfg.masked}
+async function tree(){const{files}=await api('/api/files');$('#tree').innerHTML='';files.forEach(f=>{const d=document.createElement('div');d.className='f'+(f.type==='dir'?' d':'');d.tabIndex=0;d.textContent='  '.repeat(f.path.split('/').length-1)+f.path.split('/').pop();if(f.type==='file'){d.onclick=()=>open(f.path);d.onkeydown=e=>e.key==='Enter'&&open(f.path)}$('#tree').append(d)});if(!files.length)$('#tree').innerHTML='<div class="d">Empty workspace. Ask Araina to create something.</div>'}
+async function open(p){const{content}=await api('/api/file?path='+encodeURIComponent(p));cur=p;$('#ed').value=content;$('#ed').disabled=$('#save').disabled=false;$('#cur').textContent=p}
+$('#save').onclick=async()=>{await api('/api/file?path='+encodeURIComponent(cur),'PUT',{content:$('#ed').value});$('#cur').textContent=cur+' · saved'};
+function add(c,t){const d=document.createElement('div');d.className=c;d.textContent=t;$('#log').append(d);$('#log').scrollTop=1e9;return d}
+$('#cf').onsubmit=async e=>{e.preventDefault();const message=$('#msg').value.trim();if(!message)return;$('#msg').value='';add('m u',message);let bub=null;
+ const r=await fetch('/api/chat',{method:'POST',headers:H,body:JSON.stringify({message})});const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
+ for(;;){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});let i;while((i=buf.indexOf('\n\n'))>=0){const ev=JSON.parse(buf.slice(0,i).slice(6));buf=buf.slice(i+2);
+  if(ev.type==='text'){bub=bub||add('m','');bub.textContent+=ev.text}
+  else if(ev.type==='tool'){bub=null;add('t'+(ev.ok?'':' x'),`${ev.name}: ${ev.summary}`)}
+  else if(ev.type==='error')add('t x',ev.error);else if(ev.type==='done'){tree();if(cur)open(cur).catch(()=>{})}}}};
+$('#gear').onclick=async()=>{$('#dlg').showModal();$('#res').textContent='';try{const{models}=await api('/api/models');$('#model').innerHTML=models.map(m=>`<option value="${m.id}"${m.id===cfg.model?' selected':''}>${m.id}</option>`).join('')}catch(e){$('#model').innerHTML=cfg.model?`<option>${cfg.model}</option>`:'';$('#res').textContent='Could not list models: '+e.message}};
+$('#sv').onclick=async()=>{await api('/api/config','POST',{apiKey:$('#key').value||undefined,model:$('#model').value});$('#key').value='';await status();$('#res').textContent='Saved.'};
+$('#ts').onclick=async()=>{try{const r=await api('/api/test','POST');$('#res').textContent=`Connected. ${r.modelCount} models available.`}catch(e){$('#res').textContent='Failed: '+e.message}};
+$('#rm').onclick=async()=>{await api('/api/config','DELETE');await status()};$('#cl').onclick=()=>$('#dlg').close();
+status();tree();
+</script></body></html>

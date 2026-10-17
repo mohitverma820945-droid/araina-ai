@@ -1,0 +1,1 @@
+{"name":"araina-ai","version":"0.1.0","type":"module","scripts":{"start":"node server.mjs","test":"node --test --test-timeout=15000 test/araina.test.mjs"},"engines":{"node":">=20"},"dependencies":{"@capacitor/android":"^8.5.3","@capacitor/cli":"^8.5.3","@capacitor/core":"^8.5.3"}}
